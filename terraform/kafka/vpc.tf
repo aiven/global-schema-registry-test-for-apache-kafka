@@ -5,6 +5,7 @@ resource "aiven_project_vpc" "primary" {
 
     timeouts {
         create = "5m"
+        delete = "10m"
     }
 }
 
