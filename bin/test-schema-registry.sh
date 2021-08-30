@@ -8,7 +8,7 @@
 TFVARS=./terraform/.auto.tfvars
 KAFKA_ADMIN_USER="avnadmin"
 
-PROJECT_NAME=$(awk -F "= " '/avn_kafka_svc_project_id/ {print $2}' ${TFVARS} | sed 's/"//g')
+PROJECT_NAME=$(awk -F "= " '/avn_kafka1_svc_project_id/ {print $2}' ${TFVARS} | sed 's/"//g')
 ENDPOINT_NAME=$(awk -F "= " '/avn_kafka1_svc_endpoint_name/ {print $2}' ${TFVARS} | sed 's/"//g')
 
 # kafka
@@ -21,6 +21,7 @@ AVN_KAFKA1_SVC_PASSWORD="$(avn service user-list --format '{username} {password}
 # $SCHEMA_REGISTRY_URL is the "real" (primary) schema registry URL in your "primary" Kafka service. 
 # $USERNAME and $PASSWORD are the "real" (primary) Schema Registry credentials, e.g. `avnadmin` and its password.
 # https://avnadmin:XXXXXXXXXXX@kafka-primary-sa-chrism-test.aivencloud.com:24952
-SCHEMA_REGISTRY_URL="https://$KAFKA_ADMIN_USER:$AVN_KAFKA1_SVC_PASSWORD@$AVN_KAFKA1_SVC_NAME-$PROJECT_NAME.aivencloud.com:24952"
+SCHEMA_REGISTRY_URL="https://$KAFKA_ADMIN_USER:$AVN_KAFKA1_SVC_PASSWORD@public-$AVN_KAFKA1_SVC_NAME-$PROJECT_NAME.aivencloud.com:24952"
+echo "SCHEMA_REGISTRY_URL: $SCHEMA_REGISTRY_URL"
 
 curl -X GET "$SCHEMA_REGISTRY_URL/subjects"
