@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
- #curl -H "Content-Type: application/vnd.kafka.avro.v2+json" -X POST -d \
- # '{"value_schema": "{\"namespace\": \"example.avro\", \"type\": \"record\", \"name\": \"simple\", \"fields\": \
- # [{\"name\": \"name\", \"type\": \"string\"}]}", "records": [{"value": {"name": "name0"}}]}' http://localhost:8081/topics/my_topic
+# ref: Additional Karapace Quickstart
+# https://github.com/aiven/karapace/blob/master/README.rst 
 
 # Globals
 TFVARS=./terraform/.auto.tfvars
@@ -17,11 +16,65 @@ AVN_KAFKA2_SVC_NAME=$(AWK -F "= " '/avn_kafka2_svc_name/ {print $2}' ${TFVARS} |
 
 # get project/service creds
 AVN_KAFKA1_SVC_PASSWORD="$(avn service user-list --format '{username} {password}' --project $PROJECT_NAME $AVN_KAFKA1_SVC_NAME | awk '{print $2}')"
+AVN_KAFKA2_SVC_PASSWORD="$(avn service user-list --format '{username} {password}' --project $PROJECT_NAME $AVN_KAFKA2_SVC_NAME | awk '{print $2}')"
 
-# $SCHEMA_REGISTRY_URL is the "real" (primary) schema registry URL in your "primary" Kafka service. 
+# $PRIMARY_SCHEMA_REGISTRY_URL is the "real" (primary) schema registry URL in your "primary" Kafka service. 
 # $USERNAME and $PASSWORD are the "real" (primary) Schema Registry credentials, e.g. `avnadmin` and its password.
 # https://avnadmin:XXXXXXXXXXX@kafka-primary-sa-chrism-test.aivencloud.com:24952
-SCHEMA_REGISTRY_URL="https://$KAFKA_ADMIN_USER:$AVN_KAFKA1_SVC_PASSWORD@public-$AVN_KAFKA1_SVC_NAME-$PROJECT_NAME.aivencloud.com:24952"
-echo "SCHEMA_REGISTRY_URL: $SCHEMA_REGISTRY_URL"
+PRIMARY_SCHEMA_REGISTRY_URL="https://$KAFKA_ADMIN_USER:$AVN_KAFKA1_SVC_PASSWORD@public-$AVN_KAFKA1_SVC_NAME-$PROJECT_NAME.aivencloud.com:24952"
+SECONDARY_SCHEMA_REGISTRY_URL="https://$KAFKA_ADMIN_USER:$AVN_KAFKA2_SVC_PASSWORD@public-$AVN_KAFKA2_SVC_NAME-$PROJECT_NAME.aivencloud.com:24952"
 
-curl -X GET "$SCHEMA_REGISTRY_URL/subjects"
+# re-enable for debug sensitive shows avnadmin password to console
+#echo
+#echo "============================================================="
+#echo "PRIMARY_SCHEMA_REGISTRY_URL:   $PRIMARY_SCHEMA_REGISTRY_URL"
+#echo "SECONDARY_SCHEMA_REGISTRY_URL: $SECONDARY_SCHEMA_REGISTRY_URL"
+#echo "============================================================="
+#echo
+
+echo
+echo "Making API calls to the PRIMARY_SCHEMA_REGISTRY_URL"
+echo
+
+echo "Register a new version of a schema under the subject 'Kafka-key'"
+curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+--data '{"schema": "{\"type\": \"string\"}"}' \
+"$PRIMARY_SCHEMA_REGISTRY_URL/subjects/kafka-key/versions"
+
+echo "Register a new version of a schema under the subject 'Kafka-value'"
+curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+--data '{"schema": "{\"type\": \"string\"}"}' \
+"$PRIMARY_SCHEMA_REGISTRY_URL/subjects/kafka-value/versions"
+
+echo "Register an existing schema to a new subject name"
+curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+--data "{\"schema\": $(curl -s $PRIMARY_SCHEMA_REGISTRY_URL/subjects/Kafka-value/versions/latest | jq '.schema')}" \
+"$PRIMARY_SCHEMA_REGISTRY_URL/subjects/kafka2-value/versions"
+
+echo
+echo "All below queries use the SECONDARY_SCHEMA_REGISTRY_URL for validating"
+echo
+
+echo "Subjects:"
+curl -s -X GET "$SECONDARY_SCHEMA_REGISTRY_URL/subjects" | jq .
+echo
+
+echo "Topics:"
+curl -s -X GET "$SECONDARY_SCHEMA_REGISTRY_URL/topics" | jq .
+echo
+
+echo "Fetch a schema by globally unique ID 1"
+curl -s -X GET "$SECONDARY_SCHEMA_REGISTRY_URL/schemas/ids/1" | jq .
+echo
+
+echo "Get info on our terraform created topic 'topics primary-topic-tf'"
+curl -s -X GET "$SECONDARY_SCHEMA_REGISTRY_URL/topics/primary-topic-tf" | jq .
+echo
+
+echo 'Show config compat level'
+curl -s -X GET "$SECONDARY_SCHEMA_REGISTRY_URL/config" | jq .
+echo
+
+echo "List all schema versions registered under the subject 'primary-schema-tf' querying SECONDARY_SCHEMA_REGISTRY_URL"
+curl -X GET $SECONDARY_SCHEMA_REGISTRY_URL/subjects/primary-schema-tf/versions
+echo

@@ -31,7 +31,7 @@ resource "aiven_kafka" "kafka-service1" {
 resource "aiven_kafka_topic" "kafka-topic1" {
   project      = var.avn_kafka1_svc_project_id
   service_name = aiven_kafka.kafka-service1.service_name
-  topic_name   = "test-kafka1-topic"
+  topic_name   = "primary-topic-tf"
   partitions   = 3
   replication  = 2
 }
@@ -65,13 +65,13 @@ resource "aiven_kafka" "kafka-service2" {
 }
 
 # Kafka2 topic
-resource "aiven_kafka_topic" "kafka-topic2" {
-  project      = var.avn_kafka2_svc_project_id
-  service_name = aiven_kafka.kafka-service2.service_name
-  topic_name   = "test-kafka2-topic"
-  partitions   = 3
-  replication  = 2
-}
+#resource "aiven_kafka_topic" "kafka-topic2" {
+#  project      = var.avn_kafka2_svc_project_id
+#  service_name = aiven_kafka.kafka-service2.service_name
+#  topic_name   = "test-kafka2-topic"
+#  partitions   = 3
+#  replication  = 2
+#}
 
 # Kafka Schema configuration in the primary 
 resource "aiven_kafka_schema_configuration" "schema-config" {
@@ -84,6 +84,6 @@ resource "aiven_kafka_schema_configuration" "schema-config" {
 resource "aiven_kafka_schema" "kafka-schema" {
   project      = var.avn_kafka1_svc_project_id
   service_name = aiven_kafka.kafka-service1.service_name
-  subject_name = "kafka1-schema"
+  subject_name = "primary-schema-tf"
   schema       = file("${path.module}/external_schema.avsc")
 }
